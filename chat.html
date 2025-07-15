@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gemma Chatbot</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="chat.css" />
+  </head>
+  <body>
+    <div id="chat-container">
+      <div id="chat-header">💬 its a Gemma Chatbot for you</div>
+      <div id="chat-messages"></div>
+      <div id="chat-input">
+        <textarea id="input" rows="2" placeholder="Type a query..."></textarea>
+        <button id="sendBtn" onclick="send()">Send</button>
+        <button id="clearBtn" onclick="clearChat()">Clear</button>
+        <button id="themeToggle" onclick="toggleTheme()">🌓</button>
+      </div>
+    </div>
+
+    <script>
+      const chatMessages = document.getElementById("chat-messages");
+      const inputBox = document.getElementById("input");
+
+      window.onload = () => {
+        inputBox.focus();
+        loadChat();
+        if (localStorage.getItem("theme") === "light")
+          document.body.classList.add("light");
+      };
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          send();
+        }
+      });
+
+      function getAvatar(sender) {
+        return `<div class='avatar'>${sender === "user" ? "U" : "B"}</div>`;
+      }
+
+      function addMessage(text, sender) {
+        const msg = document.createElement("div");
+        msg.className = "message " + sender;
+        msg.innerHTML = `${getAvatar(
+          sender
+        )}<div>${text}<div class="timestamp">${new Date().toLocaleTimeString()}</div></div>`;
+        chatMessages.appendChild(msg);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        saveChat();
+      }
+
+      async function send() {
+        const input = inputBox.value.trim();
+        if (!input) return;
+
+        addMessage(input, "user");
+        inputBox.value = "";
+
+        addMessage("<em>Typing...</em>", "bot");
+
+        try {
+          const res = await fetch("http://127.0.0.1:5000/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: input }),
+          });
+
+          const data = await res.json();
+          const botMsgs = chatMessages.querySelectorAll(".bot");
+          botMsgs[botMsgs.length - 1].innerHTML = `${getAvatar("bot")}<div>${
+            data.response
+          }<div class="timestamp">${new Date().toLocaleTimeString()}</div></div>`;
+          saveChat();
+        } catch (error) {
+          const botMsgs = chatMessages.querySelectorAll(".bot");
+          botMsgs[botMsgs.length - 1].innerHTML = `${getAvatar(
+            "bot"
+          )}<div>⚠️ Error: ${
+            error.message
+          }<div class="timestamp">${new Date().toLocaleTimeString()}</div></div>`;
+        }
+      }
+
+      function clearChat() {
+        chatMessages.innerHTML = "";
+        inputBox.value = "";
+        localStorage.removeItem("chat-history");
+      }
+
+      function saveChat() {
+        localStorage.setItem("chat-history", chatMessages.innerHTML);
+      }
+
+      function loadChat() {
+        const saved = localStorage.getItem("chat-history");
+        if (saved) chatMessages.innerHTML = saved;
+      }
+
+      function toggleTheme() {
+        document.body.classList.toggle("light");
+        localStorage.setItem(
+          "theme",
+          document.body.classList.contains("light") ? "light" : "dark"
+        );
+      }
+    </script>
+  </body>
+</html>
